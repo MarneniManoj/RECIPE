@@ -8,7 +8,7 @@ else()
     message(STATUS "Build type is set to ${CMAKE_BUILD_TYPE}")
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -march=native -mrtm -mcx16 -mavx -mavx2 -mbmi2 -mlzcnt -Wno-deprecated-declarations -Wall -Wextra -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free -faligned-new=64 -DNDEBUG")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -march=native -mrtm -mcx16 -mavx -mavx2 -mbmi2 -mlzcnt -Wno-deprecated-declarations -Wall -Wextra -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free -faligned-new=64 -DNDEBUG")
 
 execute_process(COMMAND cat /proc/cpuinfo COMMAND grep clflush OUTPUT_VARIABLE ENABLE_CLFLUSH)
 execute_process(COMMAND cat /proc/cpuinfo COMMAND grep clflushopt OUTPUT_VARIABLE ENABLE_CLFLUSHOPT)
@@ -72,18 +72,25 @@ if(WOART_STRING)
     message(STATUS "Option for the string type support of WOART is enabled")
     add_definitions(-DSTRING_TYPE)
 endif(WOART_STRING)
+add_subdirectory(concurrent-btrees)
+add_subdirectory(concurrent-btrees/btree_tests/ParallelTools)
 
+# add_subdirectory(concurrent-btrees/btree_tests/ParallelTools)
 if (HOT)
 add_definitions(-DHOT)
 include_directories(P-HOT/libs/hot/commons/include P-HOT/libs/hot/rowex/include
     P-HOT/libs/idx/benchmark-helpers/include P-HOT/libs/idx/map-helpers/include
-    P-HOT/libs/idx/content-helpers/include P-HOT/libs/idx/utils/include P-HOT/libs/profile-lib/include)
+    P-HOT/libs/idx/content-helpers/include P-HOT/libs/idx/utils/include P-HOT/libs/profile-lib/include
+    concurrent-btrees/tlx/container concurrent-btrees/btree_tests/ParallelTools)
 endif()
+
 
 include_directories(third-party/CCEH)
 include_directories(P-Masstree)
 include_directories(P-CLHT/include P-CLHT/external/include)
 include_directories(P-BwTree)
+include_directories(concurrent-btrees/tlx/container)
+include_directories(concurrent-btrees/btree_tests/ParallelTools)
 
 find_library(JemallocLib jemalloc)
 find_library(TbbLib tbb)
@@ -110,4 +117,4 @@ target_link_libraries(Indexes ${TbbLib} ${JemallocLib} ${CMAKE_THREAD_LIBS_INIT}
 set(YCSB_TEST ycsb.cpp)
 add_executable(ycsb ${YCSB_TEST})
 
-target_link_libraries(ycsb Indexes atomic boost_system boost_thread)
+target_link_libraries(ycsb Indexes atomic boost_system boost_thread tlx paralleltools)
