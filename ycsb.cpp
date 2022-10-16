@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include "tbb/tbb.h"
 #include <btree_map.hpp>
+#include <btree.hpp>
 using namespace std;
 
 #include "P-ART/Tree.h"
@@ -30,6 +31,7 @@ using namespace wangziqi2013::bwtree;
 
 // index types
 enum {
+    TYPE_BTREE,
     TYPE_ART,
     TYPE_HOT,
     TYPE_BWTREE,
@@ -773,7 +775,48 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
     range_complete.store(0);
     range_incomplete.store(0);
 
-    if (index_type == TYPE_ART) {
+    if (index_type == TYPE_BTREE) {
+        tlx::btree_map<uint64_t, uint64_t> tree;
+        {
+            // Load
+            auto starttime = std::chrono::system_clock::now();
+            tbb::parallel_for(tbb::blocked_range<uint64_t>(0, LOAD_SIZE), [&](const tbb::blocked_range<uint64_t> &scope) {
+                for (uint64_t i = scope.begin(); i != scope.end(); i++) {
+                    tree.insert(std::make_pair(init_keys[i], init_keys[i]));
+                }
+            });
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::system_clock::now() - starttime);
+            printf("Throughput: load, %f ,ops/us\n", (LOAD_SIZE * 1.0) / duration.count());
+        }
+
+        {
+            typedef tlx::btree_map<uint64_t, uint64_t> btree_type;
+            // Run
+            auto starttime = std::chrono::system_clock::now();
+            tbb::parallel_for(tbb::blocked_range<uint64_t>(0, RUN_SIZE), [&](const tbb::blocked_range<uint64_t> &scope) {
+                for (uint64_t i = scope.begin(); i != scope.end(); i++) {
+                    if (ops[i] == OP_INSERT) {
+                        // Key *key = key->make_leaf(keys[i], sizeof(uint64_t), keys[i]);
+                        tree.insert(std::make_pair(keys[i], keys[i]));
+                    } else if (ops[i] == OP_READ) {
+                        btree_type::iterator itr = tree.find(keys[i]);
+                        if(itr != tree.end() && itr->second != keys[i]){
+                            std::cout << "[BTREE] wrong key read: " << itr->second << " expected:" << keys[i] << std::endl;
+                        }
+                    } else if (ops[i] == OP_SCAN) {
+                        std::cout << "NOT SUPPORTED CMD!\n";
+                    } else if (ops[i] == OP_UPDATE) {
+                        std::cout << "NOT SUPPORTED CMD!\n";
+                        exit(0);
+                    }
+                }
+            });
+            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
+                    std::chrono::system_clock::now() - starttime);
+            printf("Throughput: run, %f ,ops/us\n", (RUN_SIZE * 1.0) / duration.count());
+        }
+    }else if (index_type == TYPE_ART) {
         ART_ROWEX::Tree tree(loadKey);
 
         {
@@ -1299,6 +1342,9 @@ int main(int argc, char **argv) {
     int index_type;
     if (strcmp(argv[1], "art") == 0)
         index_type = TYPE_ART;
+
+    else if (strcmp(argv[1], "btree") == 0)
+        index_type = TYPE_BTREE;
     else if (strcmp(argv[1], "hot") == 0) {
 #ifdef HOT
         index_type = TYPE_HOT;
