@@ -226,8 +226,8 @@ void barrier_cross(barrier_t *b) {
 barrier_t barrier;
 /////////////////////////////////////////////////////////////////////////////////
 
-static uint64_t LOAD_SIZE = 6400;
-static uint64_t RUN_SIZE = 6400;
+static uint64_t LOAD_SIZE = 100000000;
+static uint64_t RUN_SIZE = 100000000;
 
 void loadKey(TID tid, Key &key) {
     return ;
@@ -806,6 +806,7 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
                         }
                     } else if (ops[i] == OP_SCAN) {
                         std::cout << "NOT SUPPORTED CMD!\n";
+                        exit(0);
                     } else if (ops[i] == OP_UPDATE) {
                         std::cout << "NOT SUPPORTED CMD!\n";
                         exit(0);
