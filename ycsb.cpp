@@ -18,8 +18,6 @@ using namespace std;
 #include "third-party/WOART/woart.h"
 #include "masstree.h"
 #include "P-BwTree/src/bwtree.h"
-#include "clht.h"
-#include "ssmem.h"
 
 #ifdef HOT
 #include <hot/rowex/HOTRowex.hpp>
@@ -192,10 +190,6 @@ class KeyExtractor {
 /////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////Helper functions for P-CLHT/////////////////////////////
-typedef struct thread_data {
-    uint32_t id;
-    clht_t *ht;
-} thread_data_t;
 
 typedef struct barrier {
     pthread_cond_t complete;
@@ -1060,95 +1054,6 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
                     std::chrono::system_clock::now() - starttime);
             printf("Throughput: run, %f ,ops/us\n", (RUN_SIZE * 1.0) / duration.count());
         }
-    } else if (index_type == TYPE_CLHT) {
-        clht_t *hashtable = clht_create(512);
-
-        barrier_init(&barrier, num_thread);
-
-        thread_data_t *tds = (thread_data_t *) malloc(num_thread * sizeof(thread_data_t));
-
-        std::atomic<int> next_thread_id;
-
-        {
-            // Load
-            auto starttime = std::chrono::system_clock::now();
-            next_thread_id.store(0);
-            auto func = [&]() {
-                int thread_id = next_thread_id.fetch_add(1);
-                tds[thread_id].id = thread_id;
-                tds[thread_id].ht = hashtable;
-
-                uint64_t start_key = LOAD_SIZE / num_thread * (uint64_t)thread_id;
-                uint64_t end_key = start_key + LOAD_SIZE / num_thread;
-
-                clht_gc_thread_init(tds[thread_id].ht, tds[thread_id].id);
-                barrier_cross(&barrier);
-
-                for (uint64_t i = start_key; i < end_key; i++) {
-                    clht_put(tds[thread_id].ht, init_keys[i], init_keys[i]);
-                }
-            };
-
-            std::vector<std::thread> thread_group;
-
-            for (int i = 0; i < num_thread; i++)
-                thread_group.push_back(std::thread{func});
-
-            for (int i = 0; i < num_thread; i++)
-                thread_group[i].join();
-            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-                    std::chrono::system_clock::now() - starttime);
-            printf("Throughput: load, %f ,ops/us\n", (LOAD_SIZE * 1.0) / duration.count());
-        }
-
-        barrier.crossing = 0;
-
-        {
-            // Run
-            auto starttime = std::chrono::system_clock::now();
-            next_thread_id.store(0);
-            auto func = [&]() {
-                int thread_id = next_thread_id.fetch_add(1);
-                tds[thread_id].id = thread_id;
-                tds[thread_id].ht = hashtable;
-
-                uint64_t start_key = RUN_SIZE / num_thread * (uint64_t)thread_id;
-                uint64_t end_key = start_key + RUN_SIZE / num_thread;
-
-                clht_gc_thread_init(tds[thread_id].ht, tds[thread_id].id);
-                barrier_cross(&barrier);
-
-                for (uint64_t i = start_key; i < end_key; i++) {
-                    if (ops[i] == OP_INSERT) {
-                        clht_put(tds[thread_id].ht, keys[i], keys[i]);
-                    } else if (ops[i] == OP_READ) {
-                        uintptr_t val = clht_get(tds[thread_id].ht->ht, keys[i]);
-                        if (val != keys[i]) {
-                            std::cout << "[CLHT] wrong key read: " << val << "expected: " << keys[i] << std::endl;
-                            exit(1);
-                        }
-                    } else if (ops[i] == OP_SCAN) {
-                        std::cout << "NOT SUPPORTED CMD!\n";
-                        exit(0);
-                    } else if (ops[i] == OP_UPDATE) {
-                        std::cout << "NOT SUPPORTED CMD!\n";
-                        exit(0);
-                    }
-                }
-            };
-
-            std::vector<std::thread> thread_group;
-
-            for (int i = 0; i < num_thread; i++)
-                thread_group.push_back(std::thread{func});
-
-            for (int i = 0; i < num_thread; i++)
-                thread_group[i].join();
-            auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-                    std::chrono::system_clock::now() - starttime);
-            printf("Throughput: run, %f ,ops/us\n", (RUN_SIZE * 1.0) / duration.count());
-        }
-        clht_gc_destroy(hashtable);
     } else if (index_type == TYPE_FASTFAIR) {
         fastfair::btree *bt = new fastfair::btree();
 
