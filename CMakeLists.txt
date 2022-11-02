@@ -103,7 +103,7 @@ set(INDEX_FILES P-ART/Tree.cpp P-Masstree/masstree.cpp third-party/FAST_FAIR/btr
 else()
 set(INDEX_FILES P-ART/Tree.cpp third-party/FAST_FAIR/btree.h third-party/CCEH/src/CCEH_MSB.cpp
     third-party/CCEH/src/Level_hashing.cpp P-BwTree/src/bwtree.cpp P-Masstree/masstree.cpp
-    P-BwTree/test/test_suite.cpp third-party/WOART/woart.cpp
+     third-party/WOART/woart.cpp
     )
 endif()
 
