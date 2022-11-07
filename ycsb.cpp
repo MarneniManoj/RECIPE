@@ -770,13 +770,15 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
     range_incomplete.store(0);
 
     if (index_type == TYPE_BTREE) {
-        tlx::btree_map<uint64_t, uint64_t> tree;
+  tlx::btree_map<uint64_t, uint64_t, std::less<uint64_t>, tlx::btree_default_traits<uint64_t, uint64_t>,
+                 std::allocator<uint64_t>, true>
+      concurrent_map;
         {
             // Load
             auto starttime = std::chrono::system_clock::now();
             tbb::parallel_for(tbb::blocked_range<uint64_t>(0, LOAD_SIZE), [&](const tbb::blocked_range<uint64_t> &scope) {
                 for (uint64_t i = scope.begin(); i != scope.end(); i++) {
-                    tree.insert(std::make_pair(init_keys[i], init_keys[i]));
+                    concurrent_map.insert({init_keys[i], init_keys[i]});
                 }
             });
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
@@ -785,18 +787,17 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
         }
 
         {
-            typedef tlx::btree_map<uint64_t, uint64_t> btree_type;
             // Run
             auto starttime = std::chrono::system_clock::now();
             tbb::parallel_for(tbb::blocked_range<uint64_t>(0, RUN_SIZE), [&](const tbb::blocked_range<uint64_t> &scope) {
                 for (uint64_t i = scope.begin(); i != scope.end(); i++) {
                     if (ops[i] == OP_INSERT) {
                         // Key *key = key->make_leaf(keys[i], sizeof(uint64_t), keys[i]);
-                        tree.insert(std::make_pair(keys[i], keys[i]));
+                        concurrent_map.insert({keys[i], keys[i]});
                     } else if (ops[i] == OP_READ) {
-                        btree_type::iterator itr = tree.find(keys[i]);
-                        if(itr != tree.end() && itr->second != keys[i]){
-                            std::cout << "[BTREE] wrong key read: " << itr->second << " expected:" << keys[i] << std::endl;
+                        if(concurrent_map.exists(keys[i]) &&  concurrent_map.value(keys[i]) != keys[i]) {
+                            std::cout << "[BTREE] wrong key read: " << concurrent_map.value(keys[i]) << " expected:" << keys[i] << std::endl;
+                            exit(0);
                         }
                     } else if (ops[i] == OP_SCAN) {
                         std::cout << "NOT SUPPORTED CMD!\n";
