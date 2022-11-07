@@ -800,8 +800,15 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
                             exit(0);
                         }
                     } else if (ops[i] == OP_SCAN) {
-                        std::cout << "NOT SUPPORTED CMD!\n";
-                        exit(0);
+                        uint64_t buf[200];
+                        int resultsFound = 0;
+
+                        uint64_t start= keys[i];
+
+                        concurrent_map.map_range_length(start, ranges[i], [buf, &resultsFound]([[maybe_unused]] auto el) {
+                            // buf[resultsFound] = el.second;
+                            resultsFound++;
+                        });
                     } else if (ops[i] == OP_UPDATE) {
                         std::cout << "NOT SUPPORTED CMD!\n";
                         exit(0);
