@@ -246,7 +246,9 @@ class BwTreeBase {
   static constexpr size_t CACHE_LINE_MASK = ~(CACHE_LINE_SIZE - 1);
   
   // We invoke the GC procedure after this has been reached
-  static constexpr size_t GC_NODE_COUNT_THREADHOLD = 1024;
+ 
+     public:
+     static constexpr size_t GC_NODE_COUNT_THREADHOLD = 1024;
 
   
   /*
@@ -256,6 +258,7 @@ class BwTreeBase {
    * all garbage pointer to BaseNode should be represented as void *, and are
    * casted to appropriate type manually
    */
+
   class GarbageNode {
    public:
     // The epoch that this node is unlinked
@@ -355,11 +358,7 @@ class BwTreeBase {
                 " not conform to the alignment!");
  
  private: 
-  // This is used as the garbage collection ID, and is maintained in a per
-  // thread level
-  // This is initialized to -1 in order to distinguish between registered 
-  // threads and unregistered threads
-  static thread_local int gc_id;
+
   
   // This is used to count the number of threads participating GC process
   // We use this number to initialize GC data structure
@@ -381,7 +380,11 @@ class BwTreeBase {
   uint64_t epoch;
   
  public:
-   
+     // This is used as the garbage collection ID, and is maintained in a per
+  // thread level
+  // This is initialized to -1 in order to distinguish between registered 
+  // threads and unregistered threads
+  static thread_local int gc_id;
   /*
    * DestroyThreadLocal() - Destroies thread local
    *
