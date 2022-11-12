@@ -1,3 +1,4 @@
 [submodule "concurrent-btrees"]
 	path = concurrent-btrees
-	url = git@github.com:MarneniManoj/concurrent-btrees.git
+	url = git@github.com:wheatman/concurrent-btrees.git
+	branch = with_leafds
