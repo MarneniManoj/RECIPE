@@ -74,6 +74,7 @@ if(WOART_STRING)
 endif(WOART_STRING)
 add_subdirectory(concurrent-btrees)
 add_subdirectory(concurrent-btrees/btree_tests/ParallelTools)
+add_subdirectory(concurrent-btrees/btree_tests/leafDS)
 
 # add_subdirectory(concurrent-btrees/btree_tests/ParallelTools)
 if (HOT)
@@ -81,7 +82,8 @@ add_definitions(-DHOT)
 include_directories(P-HOT/libs/hot/commons/include P-HOT/libs/hot/rowex/include
     P-HOT/libs/idx/benchmark-helpers/include P-HOT/libs/idx/map-helpers/include
     P-HOT/libs/idx/content-helpers/include P-HOT/libs/idx/utils/include P-HOT/libs/profile-lib/include
-    concurrent-btrees/tlx/container concurrent-btrees/btree_tests/ParallelTools)
+    concurrent-btrees/tlx/container concurrent-btrees/btree_tests/ParallelTools
+    concurrent-btrees/btree_tests/leafDS)
 endif()
 
 
@@ -90,6 +92,7 @@ include_directories(P-Masstree)
 include_directories(P-BwTree)
 include_directories(concurrent-btrees/tlx/container)
 include_directories(concurrent-btrees/btree_tests/ParallelTools)
+include_directories(concurrent-btrees/btree_tests/leafDS)
 
 find_library(JemallocLib jemalloc)
 find_library(TbbLib tbb)
@@ -114,4 +117,4 @@ target_link_libraries(Indexes ${TbbLib} ${JemallocLib} ${CMAKE_THREAD_LIBS_INIT}
 set(YCSB_TEST ycsb.cpp)
 add_executable(ycsb ${YCSB_TEST})
 
-target_link_libraries(ycsb Indexes atomic boost_system boost_thread tlx paralleltools)
+target_link_libraries(ycsb Indexes atomic boost_system boost_thread tlx paralleltools leafds)
