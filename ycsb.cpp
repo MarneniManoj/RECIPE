@@ -805,8 +805,8 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
 
                         uint64_t start= keys[i];
 
-                        concurrent_map.map_range_length(start, ranges[i], [&buf, &resultsFound]([[maybe_unused]] auto el) {
-                            buf[resultsFound] = el.second;
+                        concurrent_map.map_range_length(start, ranges[i], [&buf, &resultsFound]( auto key, auto value) {
+                            buf[resultsFound] = value;
                             resultsFound++;
                         });
                     } else if (ops[i] == OP_UPDATE) {
