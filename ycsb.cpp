@@ -46,6 +46,7 @@ enum {
     OP_UPDATE,
     OP_READ,
     OP_SCAN,
+    OP_SCAN_END,
     OP_DELETE,
 };
 
@@ -55,6 +56,8 @@ enum {
     WORKLOAD_C,
     WORKLOAD_D,
     WORKLOAD_E,
+    WORKLOAD_X,
+    WORKLOAD_Y,
 };
 
 enum {
@@ -670,6 +673,7 @@ void ycsb_load_run_string(int index_type, int wl, int kt, int ap, int num_thread
 void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_thread,
         std::vector<uint64_t> &init_keys,
         std::vector<uint64_t> &keys,
+        std::vector<uint64_t> &range_end,
         std::vector<int> &ranges,
         std::vector<int> &ops)
 {
@@ -692,6 +696,12 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
         } else if (kt == RANDINT_KEY && wl == WORKLOAD_E) {
             init_file = "./index-microbench/workloads/loade_unif_int.dat";
             txn_file = "./index-microbench/workloads/txnse_unif_int.dat";
+        } else if (kt == RANDINT_KEY && wl == WORKLOAD_X) {
+            init_file = "./index-microbench/workloads/loadx_unif_int.dat";
+            txn_file = "./index-microbench/workloads/txnsx_unif_int.dat";
+        } else if (kt == RANDINT_KEY && wl == WORKLOAD_Y) {
+            init_file = "./index-microbench/workloads/loady_unif_int.dat";
+            txn_file = "./index-microbench/workloads/txnsy_unif_int.dat";
         }
     } else {
         if (kt == RANDINT_KEY && wl == WORKLOAD_A) {
@@ -709,6 +719,12 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
         } else if (kt == RANDINT_KEY && wl == WORKLOAD_E) {
             init_file = "./index-microbench/workloads/loade_unif_int.dat";
             txn_file = "./index-microbench/workloads/txnse_unif_int.dat";
+        } else if (kt == RANDINT_KEY && wl == WORKLOAD_X) {
+            init_file = "./index-microbench/workloads/loadx_unif_int.dat";
+            txn_file = "./index-microbench/workloads/txnsx_unif_int.dat";
+        } else if (kt == RANDINT_KEY && wl == WORKLOAD_Y) {
+            init_file = "./index-microbench/workloads/loady_unif_int.dat";
+            txn_file = "./index-microbench/workloads/txnsy_unif_int.dat";
         }
     }
 
@@ -716,12 +732,14 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
 
     std::string op;
     uint64_t key;
+    uint64_t rend;
     int range;
 
     std::string insert("INSERT");
     std::string update("UPDATE");
     std::string read("READ");
     std::string scan("SCAN");
+    std::string scanend("SCANEND");
 
     int count = 0;
     while ((count < LOAD_SIZE) && infile_load.good()) {
@@ -745,19 +763,29 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
             ops.push_back(OP_INSERT);
             keys.push_back(key);
             ranges.push_back(1);
+            range_end.push_back(1);
         } else if (op.compare(update) == 0) {
             ops.push_back(OP_UPDATE);
             keys.push_back(key);
             ranges.push_back(1);
+            range_end.push_back(1);
         } else if (op.compare(read) == 0) {
             ops.push_back(OP_READ);
             keys.push_back(key);
             ranges.push_back(1);
+            range_end.push_back(1);
         } else if (op.compare(scan) == 0) {
             infile_txn >> range;
             ops.push_back(OP_SCAN);
             keys.push_back(key);
             ranges.push_back(range);
+            range_end.push_back(1);
+        } else if (op.compare(scanend) == 0) {
+            infile_txn >> rend;
+            ops.push_back(OP_SCAN_END);
+            keys.push_back(key);
+            range_end.push_back(rend);
+            ranges.push_back(1);
         } else {
             std::cout << "UNRECOGNIZED CMD!\n";
             return;
@@ -786,13 +814,14 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
             printf("Throughput: load, %f ,ops/us\n", (LOAD_SIZE * 1.0) / duration.count());
         }
 
+        auto workload_y = std::vector<std::string>(RUN_SIZE);
         {
             // Run
             auto starttime = std::chrono::system_clock::now();
             tbb::parallel_for(tbb::blocked_range<uint64_t>(0, RUN_SIZE), [&](const tbb::blocked_range<uint64_t> &scope) {
                 for (uint64_t i = scope.begin(); i != scope.end(); i++) {
                     if (ops[i] == OP_INSERT) {
-                        // Key *key = key->make_leaf(keys[i], sizeof(uint64_t), keys[i]);
+                        workload_y[i] = std::string("INSERT ")+ std::to_string(keys[i]);
                         concurrent_map.insert({keys[i], keys[i]});
                     } else if (ops[i] == OP_READ) {
                         if(concurrent_map.exists(keys[i]) &&  concurrent_map.value(keys[i]) != keys[i]) {
@@ -800,12 +829,25 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
                             exit(0);
                         }
                     } else if (ops[i] == OP_SCAN) {
-                        uint64_t buf[200];
+                        uint64_t buf[10000];
                         int resultsFound = 0;
 
                         uint64_t start= keys[i];
+                        uint64_t max = 1;
 
-                        concurrent_map.map_range_length(start, ranges[i], [&buf, &resultsFound]( auto key, auto value) {
+                        concurrent_map.map_range_length(start, ranges[i], [&buf, &resultsFound, &max]( auto key, auto value) {
+                            buf[resultsFound] = value;
+                            resultsFound++;
+                            if(max < key){
+                                max = key;
+                            }
+                        });
+                        workload_y[i] = std::string("SCANEND ")+ std::to_string(keys[i]) + std::string(" ")+ std::to_string(max);
+                    } else if (ops[i] == OP_SCAN_END) {
+                        uint64_t buf[10000];
+                        int resultsFound = 0;
+
+                        concurrent_map.map_range(keys[i], range_end[i], [&buf, &resultsFound]( auto key, auto value) {
                             buf[resultsFound] = value;
                             resultsFound++;
                         });
@@ -818,6 +860,11 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
                     std::chrono::system_clock::now() - starttime);
             printf("Throughput: run, %f ,ops/us\n", (RUN_SIZE * 1.0) / duration.count());
+
+            for (std::string value : workload_y)
+            {
+                std::cout << value << std::endl;
+            }
         }
     }else if (index_type == TYPE_ART) {
         ART_ROWEX::Tree tree(loadKey);
@@ -1295,6 +1342,10 @@ int main(int argc, char **argv) {
         wl = WORKLOAD_D;
     } else if (strcmp(argv[2], "e") == 0) {
         wl = WORKLOAD_E;
+    } else if (strcmp(argv[2], "x") == 0) {
+        wl = WORKLOAD_X;
+    } else if (strcmp(argv[2], "y") == 0) {
+        wl = WORKLOAD_Y;
     } else {
         fprintf(stderr, "Unknown workload: %s\n", argv[2]);
         exit(1);
@@ -1326,20 +1377,23 @@ int main(int argc, char **argv) {
     if (kt != STRING_KEY) {
         std::vector<uint64_t> init_keys;
         std::vector<uint64_t> keys;
+        std::vector<uint64_t> ranges_end;
         std::vector<int> ranges;
         std::vector<int> ops;
 
         init_keys.reserve(LOAD_SIZE);
         keys.reserve(RUN_SIZE);
+        ranges_end.reserve(RUN_SIZE);
         ranges.reserve(RUN_SIZE);
         ops.reserve(RUN_SIZE);
 
         memset(&init_keys[0], 0x00, LOAD_SIZE * sizeof(uint64_t));
         memset(&keys[0], 0x00, RUN_SIZE * sizeof(uint64_t));
+        memset(&ranges_end[0], 0x00, RUN_SIZE * sizeof(uint64_t));
         memset(&ranges[0], 0x00, RUN_SIZE * sizeof(int));
         memset(&ops[0], 0x00, RUN_SIZE * sizeof(int));
 
-        ycsb_load_run_randint(index_type, wl, kt, ap, num_thread, init_keys, keys, ranges, ops);
+        ycsb_load_run_randint(index_type, wl, kt, ap, num_thread, init_keys, keys,ranges_end, ranges, ops);
     } else {
         std::vector<Key *> init_keys;
         std::vector<Key *> keys;
