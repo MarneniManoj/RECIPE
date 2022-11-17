@@ -814,14 +814,12 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
             printf("Throughput: load, %f ,ops/us\n", (LOAD_SIZE * 1.0) / duration.count());
         }
 
-        auto workload_y = std::vector<std::string>(RUN_SIZE);
         {
             // Run
             auto starttime = std::chrono::system_clock::now();
             tbb::parallel_for(tbb::blocked_range<uint64_t>(0, RUN_SIZE), [&](const tbb::blocked_range<uint64_t> &scope) {
                 for (uint64_t i = scope.begin(); i != scope.end(); i++) {
                     if (ops[i] == OP_INSERT) {
-                        workload_y[i] = std::string("INSERT ")+ std::to_string(keys[i]);
                         concurrent_map.insert({keys[i], keys[i]});
                     } else if (ops[i] == OP_READ) {
                         if(concurrent_map.exists(keys[i]) &&  concurrent_map.value(keys[i]) != keys[i]) {
@@ -833,16 +831,11 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
                         int resultsFound = 0;
 
                         uint64_t start= keys[i];
-                        uint64_t max = 1;
 
-                        concurrent_map.map_range_length(start, ranges[i], [&buf, &resultsFound, &max]( auto key, auto value) {
+                        concurrent_map.map_range_length(start, ranges[i], [&buf, &resultsFound]( auto key, auto value) {
                             buf[resultsFound] = value;
                             resultsFound++;
-                            if(max < key){
-                                max = key;
-                            }
                         });
-                        workload_y[i] = std::string("SCANEND ")+ std::to_string(keys[i]) + std::string(" ")+ std::to_string(max);
                     } else if (ops[i] == OP_SCAN_END) {
                         uint64_t buf[10000];
                         int resultsFound = 0;
@@ -861,10 +854,6 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
                     std::chrono::system_clock::now() - starttime);
             printf("Throughput: run, %f ,ops/us\n", (RUN_SIZE * 1.0) / duration.count());
 
-            for (std::string value : workload_y)
-            {
-                std::cout << value << std::endl;
-            }
         }
     }else if (index_type == TYPE_ART) {
         ART_ROWEX::Tree tree(loadKey);
