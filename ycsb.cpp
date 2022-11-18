@@ -231,6 +231,11 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
     range_incomplete.store(0);
 
     if (index_type == TYPE_BTREE) {
+
+
+        for(int k =0; k<6; k++){
+        std::vector<uint64_t> query_results_keys(RUN_SIZE);
+	    std::vector<uint64_t> query_results_vals(RUN_SIZE);
   tlx::btree_map<uint64_t, uint64_t, std::less<uint64_t>, tlx::btree_default_traits<uint64_t, uint64_t>,
                  std::allocator<uint64_t>, true>
       concurrent_map;
@@ -240,16 +245,6 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
 
             // Load
             auto starttime = std::chrono::system_clock::now();
-            // tbb::parallel_for(tbb::blocked_range<uint64_t>(0, LOAD_SIZE), [&](const tbb::blocked_range<uint64_t> &scope) {
-            //     for (uint64_t i = scope.begin(); i != scope.end(); i++) {
-            //         concurrent_map.insert({init_keys[i], init_keys[i]});
-            //     }
-            // });
-            // cilk_for (int i = 0; i < init_keys.size(); i ++) {
-            //     concurrent_map.insert({init_keys[i], init_keys[i]});
-            // }
-
-
             parallel_for(0, LOAD_SIZE, [&](const uint64_t &i) {
                 concurrent_map.insert({init_keys[i], init_keys[i]});
             });
@@ -258,7 +253,6 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
                     std::chrono::system_clock::now() - starttime);
             printf("Throughput: load, %f ,ops/us and time %ld in us\n", (LOAD_SIZE * 1.0) / duration.count(), duration.count());
         }
-        auto workload_y = std::vector<std::string>(RUN_SIZE);
         {
             // Run
             auto starttime = std::chrono::system_clock::now();
@@ -271,27 +265,22 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
                             exit(0);
                         }
                     } else if (ops[i] == OP_SCAN) {
-                        uint64_t buf[10000];
-                        int resultsFound = 0;
-
                         uint64_t start= keys[i];
-                        uint64_t max = 1;
-                        concurrent_map.map_range_length(start, ranges[i], [&buf, &resultsFound, &max]([[maybe_unused]] auto el) {
-                            buf[resultsFound] = el.second;
-                            resultsFound++;
-                            if(max < el.first){
-                                max = el.first;
-                            }
+			            uint64_t key_sum = 0, val_sum = 0;
+                        concurrent_map.map_range_length(keys[i], range_end[i], [&key_sum, &val_sum]([[maybe_unused]] auto el) {
+                            key_sum += el.first;
+                            val_sum += el.second;
                         });
-                        workload_y[i] = std::string("SCANEND ")+ std::to_string(keys[i]) + std::string(" ")+ std::to_string(max);
+                        query_results_keys[i] = key_sum;
+                        query_results_vals[i] = val_sum;
                     } else if (ops[i] == OP_SCAN_END) {
-                        uint64_t buf[10000];
-                        int resultsFound = 0;
-
-                        concurrent_map.map_range(keys[i], range_end[i], [&buf, &resultsFound]([[maybe_unused]] auto el) {
-                            buf[resultsFound] = el.second;
-                            resultsFound++;
+			            uint64_t key_sum = 0, val_sum = 0;
+                        concurrent_map.map_range(keys[i], range_end[i], [&key_sum, &val_sum]([[maybe_unused]] auto el) {
+                            key_sum += el.first;
+                            val_sum += el.second;
                         });
+                        query_results_keys[i] = key_sum;
+                        query_results_vals[i] = val_sum;
                     } else if (ops[i] == OP_UPDATE) {
                         std::cout << "NOT SUPPORTED CMD!\n";
                         exit(0);
@@ -300,10 +289,14 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
                     std::chrono::system_clock::now() - starttime);
             printf("Throughput: run, %f ,ops/us\n", (RUN_SIZE * 1.0) / duration.count());
-            for (std::string value : workload_y)
-            {
-                std::cout << value << std::endl;
-            }
+        }
+        uint64_t key_sum = 0;
+        uint64_t val_sum = 0;
+        for(int i = 0; i < RUN_SIZE; i++) {
+            key_sum += query_results_keys[i];
+            val_sum += query_results_vals[i];
+        }
+        printf("total key sum = %lu, total val sum = %lu\n", key_sum, val_sum);
         }
     }
 }
