@@ -13,9 +13,9 @@
 
 using namespace std;
 
-typedef uint64_t Key;
+using Key=uint64_t;
 
-typedef uint32_t TID;
+using TID=uint64_t;
 
 // index types
 enum {
@@ -245,18 +245,18 @@ void ycsb_load_run_randint(int index_type, int wl, int kt, int ap, int num_threa
             //         concurrent_map.insert({init_keys[i], init_keys[i]});
             //     }
             // });
-            cilk_for (int i = 0; i < init_keys.size(); i ++) {
-                concurrent_map.insert({init_keys[i], init_keys[i]});
-            }
-
-
-            // parallel_for(0, LOAD_SIZE, [&](uint64_t i) {
+            // cilk_for (int i = 0; i < init_keys.size(); i ++) {
             //     concurrent_map.insert({init_keys[i], init_keys[i]});
-            // });
+            // }
+
+
+            parallel_for(0, LOAD_SIZE, [&](const uint64_t &i) {
+                concurrent_map.insert({init_keys[i], init_keys[i]});
+            });
 
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
                     std::chrono::system_clock::now() - starttime);
-            printf("Throughput: load, %f ,ops/us and time %d in us\n", (LOAD_SIZE * 1.0) / duration.count(), duration.count());
+            printf("Throughput: load, %f ,ops/us and time %ld in us\n", (LOAD_SIZE * 1.0) / duration.count(), duration.count());
         }
 
         // {
