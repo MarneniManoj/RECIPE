@@ -87,9 +87,7 @@ include_directories(P-HOT/libs/hot/commons/include P-HOT/libs/hot/rowex/include
 endif()
 
 
-include_directories(third-party/CCEH)
 include_directories(P-Masstree)
-include_directories(P-BwTree)
 include_directories(concurrent-btrees/tlx/container)
 include_directories(concurrent-btrees/btree_tests/ParallelTools)
 include_directories(concurrent-btrees/btree_tests/leafDS)
@@ -99,14 +97,13 @@ find_library(TbbLib tbb)
 find_package (Threads)
 
 if (HOT)
-set(INDEX_FILES P-ART/Tree.cpp P-Masstree/masstree.cpp third-party/FAST_FAIR/btree.h
-    P-HOT/libs/hot/rowex/include/hot/rowex/HOTRowex.hpp third-party/CCEH/src/CCEH_MSB.cpp
-    third-party/CCEH/src/Level_hashing.cpp P-BwTree/src/bwtree.cpp
-    third-party/WOART/woart.cpp )
+set(INDEX_FILES P-ART/Tree.cpp P-Masstree/masstree.cpp 
+    P-HOT/libs/hot/rowex/include/hot/rowex/HOTRowex.hpp 
+
+     )
 else()
-set(INDEX_FILES P-ART/Tree.cpp third-party/FAST_FAIR/btree.h third-party/CCEH/src/CCEH_MSB.cpp
-    third-party/CCEH/src/Level_hashing.cpp P-BwTree/src/bwtree.cpp P-Masstree/masstree.cpp
-     third-party/WOART/woart.cpp
+set(INDEX_FILES P-ART/Tree.cpp 
+
     )
 endif()
 
