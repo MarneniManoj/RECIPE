@@ -37,7 +37,7 @@ readallfields=true
 readproportion=0
 updateproportion=0
 scanproportion=1
-insertproportion=1
+insertproportion=0
 
 requestdistribution=uniform
 
